@@ -41,6 +41,7 @@ StripMine is a **Decky Loader plugin**, not a conventional Steam game. Decky Loa
 - Added synchronized per-worker pickaxe animation and spatial rock-impact audio, including overlapping workers.
 - Added mineral-coloured cargo, delivery score breakdowns, reward halos, records, promotions, and milestone celebrations.
 - Added independent music and SFX levels with an adaptive procedural orchestral score.
+- Music and SFX now start enabled by default; subsequent ON/OFF choices and both volume levels are remembered locally.
 
 ### Reliability
 

@@ -34,10 +34,22 @@ export class StripMineAudio {
   private lastCashout = -1;
   private lastReward = -1;
   private workerImpacts = new Map<number, number>();
-  musicEnabled = false;
-  effectsEnabled = true;
+  private defaultUnlock: (() => void) | null = null;
+  musicEnabled = this.readEnabled("stripmine.musicEnabled", true);
+  effectsEnabled = this.readEnabled("stripmine.effectsEnabled", true);
   musicVolume = this.readVolume("stripmine.musicVolume", 0.8);
   effectsVolume = this.readVolume("stripmine.effectsVolume", 0.65);
+
+  private readEnabled(key: string, fallback: boolean) {
+    try {
+      const raw = window.localStorage.getItem(key);
+      return raw === null ? fallback : raw === "true";
+    } catch { return fallback; }
+  }
+
+  private writeEnabled(key: string, enabled: boolean) {
+    try { window.localStorage.setItem(key, String(enabled)); } catch { /* Decky storage may be unavailable during bootstrap. */ }
+  }
 
   private readVolume(key: string, fallback: number) {
     try {
@@ -391,18 +403,53 @@ export class StripMineAudio {
     }
   };
 
+  private startMusicScheduler(context: AudioContext) {
+    if (!this.musicEnabled || context !== this.context || context.state !== "running") return;
+    window.clearInterval(this.timer);
+    this.step = 0;
+    this.nextNote = context.currentTime + 0.05;
+    this.scheduler();
+    this.timer = window.setInterval(this.scheduler, 45);
+  }
+
+  private clearDefaultUnlock() {
+    if (!this.defaultUnlock) return;
+    window.removeEventListener("pointerdown", this.defaultUnlock, true);
+    window.removeEventListener("keydown", this.defaultUnlock, true);
+    this.defaultUnlock = null;
+  }
+
+  startDefaults() {
+    const unlock = () => {
+      if (this.musicEnabled) this.setMusic(true);
+      else if (this.effectsEnabled) this.ensure();
+      if (this.context?.state === "running") this.clearDefaultUnlock();
+    };
+    unlock();
+    if (this.context?.state !== "running" && !this.defaultUnlock) {
+      this.defaultUnlock = unlock;
+      window.addEventListener("pointerdown", unlock, true);
+      window.addEventListener("keydown", unlock, true);
+    }
+  }
+
   setMusic(enabled: boolean): boolean {
-    if (enabled && !this.ensure()) return false;
     this.musicEnabled = enabled;
+    this.writeEnabled("stripmine.musicEnabled", enabled);
     window.clearInterval(this.timer);
     this.timer = 0;
-    if (enabled && this.context) {
-      this.step = 0;
-      this.nextNote = this.context.currentTime + 0.05;
-      this.scheduler();
-      this.timer = window.setInterval(this.scheduler, 45);
-    }
+    if (!enabled) return true;
+    const context = this.ensure();
+    if (!context) return false;
+    if (context.state === "running") this.startMusicScheduler(context);
+    else void context.resume().then(() => this.startMusicScheduler(context)).catch(() => undefined);
     return true;
+  }
+
+  setEffects(enabled: boolean) {
+    this.effectsEnabled = enabled;
+    this.writeEnabled("stripmine.effectsEnabled", enabled);
+    if (enabled) this.ensure();
   }
 
   setMusicVolume(value: number) {
@@ -516,6 +563,7 @@ export class StripMineAudio {
   }
 
   dispose() {
+    this.clearDefaultUnlock();
     window.clearInterval(this.timer);
     this.timer = 0;
     void this.context?.close().catch(() => undefined);

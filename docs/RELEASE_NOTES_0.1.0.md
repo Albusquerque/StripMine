@@ -10,6 +10,7 @@ This first release includes:
 - a rotating five-card Decky Dot Matrix with audio, display, pause, and reset controls;
 - Luminous and Contrasted profiles shared across the game, Decky, and physical LEDs;
 - synchronized pickaxe impacts, mineral-coloured cargo, scoring, promotions, rewards, and adaptive procedural music;
+- music and SFX enabled by default, with remembered ON/OFF choices and independent volume controls;
 - a first-launch cinematic, workshop upgrades, persistent saves, and a four-act Metropolis finale.
 
 ## Install with Decky Loader

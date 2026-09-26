@@ -51,6 +51,17 @@ class FrontendContractTests(unittest.TestCase):
         self.assertIn("0.72 / this.state.tempo", audio)
         self.assertIn("720 / s.tempo", world)
 
+    def test_music_and_sfx_default_on_and_remember_user_choice(self):
+        audio = (ROOT / "src" / "audio.ts").read_text(encoding="utf-8")
+        source = (ROOT / "src" / "index.tsx").read_text(encoding="utf-8")
+        self.assertIn('musicEnabled = this.readEnabled("stripmine.musicEnabled", true)', audio)
+        self.assertIn('effectsEnabled = this.readEnabled("stripmine.effectsEnabled", true)', audio)
+        self.assertIn('this.writeEnabled("stripmine.musicEnabled", enabled)', audio)
+        self.assertIn('this.writeEnabled("stripmine.effectsEnabled", enabled)', audio)
+        self.assertIn("startDefaults()", audio)
+        self.assertIn("audio.startDefaults()", source)
+        self.assertNotIn("audio.effectsEnabled = enabled", source)
+
     def test_master_logo_is_used_by_intro_and_packaged(self):
         intro = (ROOT / "src" / "components" / "Intro.tsx").read_text(encoding="utf-8")
         quick_panel = (ROOT / "src" / "index.tsx").read_text(encoding="utf-8")

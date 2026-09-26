@@ -46,6 +46,7 @@ The selected profile is shared by the full game, Decky, and the physical bar.
 - Persistent Crew, Logistics, and Industry upgrades in the city workshop.
 - Three player actions: **A Signal Strike**, **X Hold / Bank Convoy**, and **Y Overcharge**.
 - Per-worker pickaxe impacts, panned rock strikes, cargo rewards, milestone celebrations, and an adaptive procedural score.
+- Music and SFX enabled by default, with persistent ON/OFF choices and independent volume controls.
 - A first-launch cinematic, a four-act finale, atomic save data, and a reset that deliberately replays the introduction.
 - Safe light-bar ownership: StripMine detects another writer, releases the LEDs on conflict, and restores the previous frame only while it still owns the device.
 

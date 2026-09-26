@@ -78,8 +78,8 @@ function Game() {
   const [status, setStatus] = useState<StripMineStatus | null>(null);
   const [error, setError] = useState("");
   const [showIntro, setShowIntro] = useState(false);
-  const [music, setMusic] = useState(false);
-  const [effects, setEffects] = useState(true);
+  const [music, setMusic] = useState(sharedAudio.musicEnabled);
+  const [effects, setEffects] = useState(sharedAudio.effectsEnabled);
   const [musicVolume, setMusicVolume] = useState(Math.round(sharedAudio.musicVolume * 100));
   const [effectsVolume, setEffectsVolume] = useState(Math.round(sharedAudio.effectsVolume * 100));
   const [resetConfirm, setResetConfirm] = useState(false);
@@ -89,6 +89,8 @@ function Game() {
   const audio = sharedAudio;
   const introInitialized = useRef(false);
   const strikePending = useRef(false);
+
+  useEffect(() => { audio.startDefaults(); }, [audio]);
 
   const acceptStatus = useCallback((next: StripMineStatus) => {
     setStatus((previous) => {
@@ -200,7 +202,7 @@ function Game() {
         </div>
         <div className="sm-actions"><div className="sm-actions-title"><span>PLAYER ACTIONS</span><strong>{status.paused ? "SHIFT PAUSED" : `A · X · Y · ${controlSource === "steam" ? "STEAM INPUT" : controlSource === "browser" ? "GAMEPAD" : "WAITING"}`}</strong></div>
           <div className="sm-action-audio"><span>AUDIO</span><Button className={music ? "on" : ""} onClick={() => { const enabled = !music; if (audio.setMusic(enabled)) setMusic(enabled); }}>♫ OST {musicVolume}% · {music ? "ON" : "OFF"}</Button>
-            <Button className={effects ? "on" : ""} onClick={() => { const enabled = !effects; setEffects(enabled); audio.effectsEnabled = enabled; if (enabled) audio.play("critical"); }}>✦ SFX {effectsVolume}% · {effects ? "ON" : "OFF"}</Button></div>
+            <Button className={effects ? "on" : ""} onClick={() => { const enabled = !effects; setEffects(enabled); audio.setEffects(enabled); if (enabled) audio.play("critical"); }}>✦ SFX {effectsVolume}% · {effects ? "ON" : "OFF"}</Button></div>
           <Button className={`sm-action primary${strikeResult ? " active" : ""}`} preferredFocus disabled={status.paused || status.complete || (status.reward_pending && !finaleArmed)} onClick={() => void signalStrike()}><kbd>A</kbd><span><b>{finaleArmed ? "LAST STRIKE" : strikeResult || "SIGNAL STRIKE"}</b><small>{finaleArmed ? "Break the Ancient Core" : strikeResult ? "Impact registered · mineral progress increased" : "Time it at the vein · next load ×1.5 or ×3"}</small></span></Button>
           <Button className={`sm-action${status.convoy_held ? " active" : ""}`} disabled={status.complete} onClick={convoy}><kbd>X</kbd><span><b>{status.convoy_held ? `BANK ${status.pending_convoy} LOADED` : "HOLD CONVOY"}</b><small>{status.convoy_held ? "Release the group multiplier" : "Stack returning miners at the gates"}</small></span></Button>
           <Button className={`sm-action${status.overcharge_remaining > 0 ? " active" : ""}${status.overcharge_cooldown > 0 && status.overcharge_remaining <= 0 ? " disabled" : ""}`} disabled={status.complete || (status.overcharge_cooldown > 0 && status.overcharge_remaining <= 0)} onClick={overcharge}><kbd>Y</kbd><span><b>{status.overcharge_remaining > 0 ? `OVERCHARGE ${Math.ceil(status.overcharge_remaining)}S` : status.overcharge_cooldown > 0 ? `RECHARGE ${Math.ceil(status.overcharge_cooldown / 60)}M` : "OVERCHARGE"}</b><small>Thirty seconds at ×2.25 power</small></span></Button>
@@ -221,7 +223,7 @@ function QuickPanel() {
   const [effectsVolume, setEffectsVolume] = useState(Math.round(sharedAudio.effectsVolume * 100));
   const [resetConfirm, setResetConfirm] = useState(false);
   const audio = sharedAudio;
-  useEffect(() => { let alive = true; const refresh = () => void getStatus().then((next) => { if (alive) { setStatus(next); audio.onStatus(next); setMusic(audio.musicEnabled); setEffects(audio.effectsEnabled); } }).catch(() => undefined); refresh(); const timer = window.setInterval(refresh, 250); return () => { alive = false; window.clearInterval(timer); }; }, [audio]);
+  useEffect(() => { audio.startDefaults(); let alive = true; const refresh = () => void getStatus().then((next) => { if (alive) { setStatus(next); audio.onStatus(next); setMusic(audio.musicEnabled); setEffects(audio.effectsEnabled); } }).catch(() => undefined); refresh(); const timer = window.setInterval(refresh, 250); return () => { alive = false; window.clearInterval(timer); }; }, [audio]);
   const update = (work: Promise<StripMineStatus>) => void work.then(setStatus).catch(() => undefined);
   if (!status) return <PanelSection title="StripMine"><style>{styles}</style><div className="sm-qam-loading">WAKING THE MINE…</div></PanelSection>;
   const floors = status.city.reduce((total, plot) => total + (plot?.level ?? 0) * 2, 0);
@@ -240,7 +242,7 @@ function QuickPanel() {
     </div>
     <div className="sm-qam-stats"><i><span>AGE</span><b>{status.age + 1} · {Math.round(status.campaign_progress * 100)}%</b></i><i><span>SKYLINE</span><b>{floors} FLOORS</b></i><i><span>CREW</span><b>{status.worker_count}/4 · {status.rank_name.toUpperCase()}</b></i></div>
     <div className="sm-qam-tempo">{TEMPOS.map((name, index) => <Button key={name} className={status.tempo === index + 1 ? "active" : ""} onClick={() => update(setTempo(index + 1))}><b>{name}</b><small>×{index + 1}</small></Button>)}</div>
-    <div className="sm-qam-controls"><Button className={music ? "on" : ""} onClick={() => { const enabled = !music; if (audio.setMusic(enabled)) setMusic(enabled); }}>♫ OST {musicVolume}% · {music ? "ON" : "OFF"}</Button><Button className={effects ? "on" : ""} onClick={() => { const enabled = !effects; audio.effectsEnabled = enabled; setEffects(enabled); if (enabled) audio.play("critical"); }}>✦ SFX {effectsVolume}% · {effects ? "ON" : "OFF"}</Button><Button className={status.paused ? "on" : ""} onClick={() => update(setPaused(!status.paused))}>{status.paused ? "▶ RESUME" : "Ⅱ PAUSE"}</Button><Button className={status.led_enabled ? "on" : ""} onClick={() => update(setSetting("led_enabled", !status.led_enabled))}>▰ LED {status.led_enabled ? "ON" : "OFF"}</Button></div>
+    <div className="sm-qam-controls"><Button className={music ? "on" : ""} onClick={() => { const enabled = !music; if (audio.setMusic(enabled)) setMusic(enabled); }}>♫ OST {musicVolume}% · {music ? "ON" : "OFF"}</Button><Button className={effects ? "on" : ""} onClick={() => { const enabled = !effects; audio.setEffects(enabled); setEffects(enabled); if (enabled) audio.play("critical"); }}>✦ SFX {effectsVolume}% · {effects ? "ON" : "OFF"}</Button><Button className={status.paused ? "on" : ""} onClick={() => update(setPaused(!status.paused))}>{status.paused ? "▶ RESUME" : "Ⅱ PAUSE"}</Button><Button className={status.led_enabled ? "on" : ""} onClick={() => update(setSetting("led_enabled", !status.led_enabled))}>▰ LED {status.led_enabled ? "ON" : "OFF"}</Button></div>
     <div className="sm-qam-bar-mode"><span>PHYSICAL BAR STYLE</span><Button aria-pressed={!status.optical_bar} className={!status.optical_bar ? "active" : ""} onClick={() => update(setSetting("optical_bar", false))}><b>LUMINOUS</b><small>ALPHA.13 · BRIGHT</small></Button><Button aria-pressed={status.optical_bar} className={status.optical_bar ? "active" : ""} onClick={() => update(setSetting("optical_bar", true))}><b>CONTRASTED</b><small>ALPHA.14 · DARK GAPS</small></Button></div>
     <div className="sm-qam-volume">
       <SliderField label={`MUSIC · ${musicVolume}%`} value={musicVolume} min={0} max={100} step={5} showValue={false} onChange={(value) => { setMusicVolume(value); audio.setMusicVolume(value / 100); }} />
