@@ -49,11 +49,26 @@ The selected profile is shared by the full game, Decky, and the physical bar.
 - A first-launch cinematic, a four-act finale, atomic save data, and a reset that deliberately replays the introduction.
 - Safe light-bar ownership: StripMine detects another writer, releases the LEDs on conflict, and restores the previous frame only while it still owns the device.
 
-## Install
+## Install with Decky Loader
 
-1. Download `StripMine-v0.1.0.zip` from the [v0.1.0 release](https://github.com/Albusquerque/StripMine/releases/tag/v0.1.0).
-2. Open Decky Loader's developer settings and install the ZIP.
-3. Open **StripMine → Enter the mine**.
+StripMine is a **Decky Loader plugin**, not a conventional Steam game. Install [Decky Loader](https://github.com/SteamDeckHomebrew/decky-loader#-installation) first. StripMine is not yet listed in the Decky Plugin Store, so v0.1.0 must be sideloaded.
+
+### Directly from the release URL — recommended
+
+1. In Gaming Mode, open the Quick Access menu (`…`) and select the Decky plug icon.
+2. Open Decky **Settings** (gear), enable **Developer mode** under **General**, then open **Developer**.
+3. Choose **Install Plugin from URL** and paste:
+
+   `https://github.com/Albusquerque/StripMine/releases/download/v0.1.0/StripMine-v0.1.0.zip`
+
+4. Confirm the installation. If StripMine does not immediately appear, reload or restart Decky Loader, or reboot the device.
+5. Open **Quick Access (`…`) → Decky → StripMine → Enter the mine**.
+
+### From a downloaded ZIP
+
+1. Download the `StripMine-v0.1.0.zip` asset from the [v0.1.0 release](https://github.com/Albusquerque/StripMine/releases/tag/v0.1.0). Do not use GitHub's automatically generated “Source code” ZIP.
+2. Open **Decky Settings → Developer → Install Plugin from ZIP File** and select the downloaded archive. Do not extract it.
+3. Reload or restart Decky Loader if the plugin does not immediately appear, then open **StripMine → Enter the mine**.
 
 The full game remains playable in screen simulation when the 17-LED device is absent.
 

@@ -4,6 +4,23 @@ All notable changes to StripMine are documented here.
 
 ## 0.1.0 - 2026-09-26
 
+### Install with Decky Loader
+
+StripMine is a **Decky Loader plugin**, not a conventional Steam game. Decky Loader must already be installed on the SteamOS device. StripMine is not yet listed in the Decky Plugin Store, so v0.1.0 must be sideloaded from this GitHub release.
+
+**Install directly from the release URL — recommended:**
+
+1. In Gaming Mode, open the Quick Access menu (`…`) and select the Decky plug icon.
+2. Open Decky **Settings** (gear), enable **Developer mode** under **General**, then open **Developer**.
+3. Choose **Install Plugin from URL** and paste:
+
+   `https://github.com/Albusquerque/StripMine/releases/download/v0.1.0/StripMine-v0.1.0.zip`
+
+4. Confirm the installation. If StripMine does not immediately appear, reload or restart Decky Loader, or reboot the device.
+5. Open **Quick Access (`…`) → Decky → StripMine → Enter the mine**.
+
+**Install from a downloaded ZIP:** download the `StripMine-v0.1.0.zip` release asset onto the device, then use **Decky Settings → Developer → Install Plugin from ZIP File** and select it. Do not extract the ZIP and do not download GitHub's automatically generated “Source code” archives.
+
 ### Campaign and progression
 
 - Added a five-age, 30-vein campaign with six mineral families and a four-act Metropolis finale.
