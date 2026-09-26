@@ -35,6 +35,7 @@ export class StripMineAudio {
   private lastReward = -1;
   private workerImpacts = new Map<number, number>();
   private defaultUnlock: (() => void) | null = null;
+  private screenActive = false;
   musicEnabled = this.readEnabled("stripmine.musicEnabled", true);
   effectsEnabled = this.readEnabled("stripmine.effectsEnabled", true);
   musicVolume = this.readVolume("stripmine.musicVolume", 0.8);
@@ -61,6 +62,7 @@ export class StripMineAudio {
   }
 
   private ensure(): AudioContext | null {
+    if (!this.screenActive) return null;
     if (this.context) {
       if (this.context.state === "suspended") void this.context.resume().catch(() => undefined);
       return this.context;
@@ -420,6 +422,7 @@ export class StripMineAudio {
   }
 
   startDefaults() {
+    if (!this.screenActive) return;
     const unlock = () => {
       if (this.musicEnabled) this.setMusic(true);
       else if (this.effectsEnabled) this.ensure();
@@ -438,7 +441,7 @@ export class StripMineAudio {
     this.writeEnabled("stripmine.musicEnabled", enabled);
     window.clearInterval(this.timer);
     this.timer = 0;
-    if (!enabled) return true;
+    if (!enabled || !this.screenActive) return true;
     const context = this.ensure();
     if (!context) return false;
     if (context.state === "running") this.startMusicScheduler(context);
@@ -449,7 +452,42 @@ export class StripMineAudio {
   setEffects(enabled: boolean) {
     this.effectsEnabled = enabled;
     this.writeEnabled("stripmine.effectsEnabled", enabled);
-    if (enabled) this.ensure();
+    if (enabled && this.screenActive) this.ensure();
+  }
+
+  setScreenActive(active: boolean) {
+    if (this.screenActive === active) return;
+    this.screenActive = active;
+    if (active) {
+      this.startDefaults();
+      return;
+    }
+    // Closing rather than merely suspending discards notes already scheduled
+    // by the look-ahead sequencer. They must not leak into Steam or replay as
+    // a stale burst when the player comes back later.
+    this.stopOutput();
+  }
+
+  private stopOutput() {
+    this.clearDefaultUnlock();
+    window.clearInterval(this.timer);
+    this.timer = 0;
+    const context = this.context;
+    if (context && this.master) {
+      // Silence synchronously. AudioContext.close() is asynchronous and some
+      // WebKit/Chromium builds can otherwise emit a short tail while a new
+      // full-screen instance is already starting.
+      this.master.gain.cancelScheduledValues(context.currentTime);
+      this.master.gain.setValueAtTime(0, context.currentTime);
+    }
+    this.context = null;
+    this.master = null;
+    this.music = null;
+    this.sfx = null;
+    this.reverb = null;
+    this.delay = null;
+    this.noise = null;
+    void context?.close().catch(() => undefined);
   }
 
   setMusicVolume(value: number) {
@@ -465,6 +503,7 @@ export class StripMineAudio {
   }
 
   play(kind: string) {
+    if (!this.screenActive) return;
     const finaleMusic = kind === "finale" && this.musicEnabled;
     if (!this.effectsEnabled && !finaleMusic) return;
     const context = this.ensure();
@@ -563,10 +602,7 @@ export class StripMineAudio {
   }
 
   dispose() {
-    this.clearDefaultUnlock();
-    window.clearInterval(this.timer);
-    this.timer = 0;
-    void this.context?.close().catch(() => undefined);
-    this.context = null;
+    this.screenActive = false;
+    this.stopOutput();
   }
 }

@@ -3,11 +3,10 @@ import { Button as DeckyButton, Focusable, Navigation, NavEntryPositionPreferenc
 import type { ButtonProps } from "@decky/ui";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { activateOvercharge, buyUpgrade, getStatus, resetCampaign, retryLed, setPaused, setSetting, setTempo, strike, toggleConvoy } from "./api";
+import { activateOvercharge, buyUpgrade, getStatus, quitGame, resetCampaign, resumeGame, retryLed, setPaused, setSetting, setTempo, strike, toggleConvoy } from "./api";
 import { StripMineAudio } from "./audio";
-import { DotMatrix, MATRIX_PAGE_MS } from "./components/DotMatrix";
+import { DotMatrix, MATRIX_DOTS, MATRIX_PAGE_MS } from "./components/DotMatrix";
 import { Intro } from "./components/Intro";
-import { STRIPMINE_LOGO_URL } from "./branding";
 import { World } from "./components/World";
 import { StripMineControls, type StripMineControlSource } from "./controller";
 import { styles } from "./styles";
@@ -40,6 +39,18 @@ const TEMPOS = ["CHILL", "NORMAL", "NERVOUS", "COCAINE"] as const;
 const TEMPO_DETAILS = ["×1 · 63H", "×2 · 31H30", "×3 · 21H", "×4 · 15H45"] as const;
 const QAM_PAGES = ["SETTLEMENT", "CREW", "TWIN CITY", "DEPOSIT", "PROGRESSION"] as const;
 const sharedAudio = new StripMineAudio();
+let fullGameMounted = false;
+
+function QuickPanelBrand() {
+  return <div className="sm-qam-brand" aria-label="StripMine">
+    <svg viewBox="0 0 44 44" aria-hidden="true">
+      <path d="M5 32h34M9 32V23h7v9m3 0V16h8v16m3 0V21h6v11" />
+      <path d="M8 11h28M13 8l-4 3 4 3m18-6 4 3-4 3" />
+      <circle cx="13" cy="11" r="2.2" /><circle cx="31" cy="11" r="2.2" />
+    </svg>
+    <strong><span>Strip</span><b>Mine</b></strong>
+  </div>;
+}
 
 function ScoreCascade({ status }: { status: StripMineStatus }) {
   const event = status.last_cashout;
@@ -84,13 +95,22 @@ function Game() {
   const [effectsVolume, setEffectsVolume] = useState(Math.round(sharedAudio.effectsVolume * 100));
   const [resetConfirm, setResetConfirm] = useState(false);
   const [showWorkshop, setShowWorkshop] = useState(false);
+  const [exiting, setExiting] = useState(false);
   const [controlSource, setControlSource] = useState<StripMineControlSource>("waiting");
   const [toast, setToast] = useState<{ seq: number; label: string } | null>(null);
   const audio = sharedAudio;
   const introInitialized = useRef(false);
   const strikePending = useRef(false);
 
-  useEffect(() => { audio.startDefaults(); }, [audio]);
+  useEffect(() => {
+    fullGameMounted = true;
+    return () => { fullGameMounted = false; };
+  }, []);
+
+  useEffect(() => {
+    audio.setScreenActive(true);
+    return () => audio.setScreenActive(false);
+  }, [audio]);
 
   const acceptStatus = useCallback((next: StripMineStatus) => {
     setStatus((previous) => {
@@ -134,6 +154,20 @@ function Game() {
   }, [acceptStatus]);
   const convoy = useCallback(() => { void toggleConvoy().then(acceptStatus).catch((reason) => setError(String(reason))); }, [acceptStatus]);
   const overcharge = useCallback(() => { void activateOvercharge().then((result) => acceptStatus(result.status)).catch((reason) => setError(String(reason))); }, [acceptStatus]);
+  const exitGame = useCallback(async () => {
+    if (exiting) return;
+    setExiting(true);
+    audio.setScreenActive(false);
+    try {
+      await quitGame();
+      Navigation.NavigateToLibraryTab();
+      Navigation.CloseSideMenus();
+    } catch (reason) {
+      audio.setScreenActive(true);
+      setError(String(reason));
+      setExiting(false);
+    }
+  }, [audio, exiting]);
   useEffect(() => {
     if (showIntro) return;
     const controls = new StripMineControls({
@@ -161,7 +195,7 @@ function Game() {
   if (!status) return <div className="sm-app"><style>{styles}</style><div className="sm-reset-confirm"><div className="sm-reset-card"><h2>Waking the mine…</h2><p>{error || "Reading the saved expedition."}</p></div></div></div>;
   const ore = hex(status.deposit_color); const lead = status.workers[0]; const movement = lead?.held ? "WAITING AT GATE" : lead?.outbound ? "OUTBOUND" : "RETURNING LOADED";
   const nextReward = status.age === 0 && status.worker_count < 4 ? "NEW MINER" : status.age > 0 && status.deposit < status.worker_count ? `${status.rank_name.toUpperCase()} RANK` : "CITY UPGRADE";
-  const ledState = status.hardware_owner === "other" ? "BAR RELEASED" : status.hardware_available ? status.led_enabled ? `PHYSICAL BAR LIVE · ${status.optical_bar ? "CONTRASTED" : "LUMINOUS"}` : "BAR DISPLAY OFF" : `SCREEN SIMULATION · ${status.optical_bar ? "CONTRASTED" : "LUMINOUS"}`;
+  const ledState = status.hardware_owner === "SignalBar" ? "SIGNALBAR PRIORITY · BAR YIELDED" : status.hardware_owner === "other" ? "BAR RELEASED" : status.hardware_available ? status.led_enabled ? `PHYSICAL BAR LIVE · ${status.optical_bar ? "CONTRASTED" : "LUMINOUS"}` : "BAR DISPLAY OFF" : `SCREEN SIMULATION · ${status.optical_bar ? "CONTRASTED" : "LUMINOUS"}`;
   const skylineFloors = status.city.reduce((total, plot) => total + (plot?.level ?? 0) * 2, 0);
   const constructionLevel = status.age * 2 + (status.deposit >= 3 ? 2 : 1) + status.upgrades.industry;
   const constructionName = ["FOUNDRY", "GUILD HOUSE", "OBSERVATORY"][status.deposit % 3];
@@ -176,16 +210,16 @@ function Game() {
       <section className={`sm-world-stage${finaleActive ? " sm-final-stage" : ""}`}><World status={status} /><div className="sm-vignette" />
         {!finaleActive ? <><div className="sm-hud"><div className="sm-hud-left"><span>AGE {status.age + 1} · {status.age_name.toUpperCase()}</span><strong>{status.deposit_name.toUpperCase()}</strong><small>{status.deposit_story}</small></div>
           <div className="sm-hud-right"><span>{lead ? `${lead.side === "left" ? "W" : "E"}${Math.floor(lead.id / 2) + 1} ${movement} · LED ${Math.round(lead.position) + 1}/17` : "SHIFT COMPLETE"}</span><strong style={{ color: ore }}>{progressLabel}%</strong><small>{formatDuration(status.remaining_seconds)} REMAINING</small></div></div>
-        <div className="sm-score-hud"><span>CITY VALUE</span><strong>{formatScore(status.city_value)}</strong><small>+{formatScore(status.production_per_minute)}/MIN · BEST +{formatScore(status.best_delivery)}</small></div>
+        <div className="sm-score-hud"><span>CITY VALUE</span><strong>{formatScore(status.city_value)}</strong><small>+{formatScore(status.production_per_minute)}/MIN · BEST +{formatScore(status.best_delivery)}</small></div></> : null}
         <div className="sm-top-controls">
           <div className="sm-control-group"><span>SHIFT TEMPO</span><div className="sm-tempo" aria-label="Shift tempo">{TEMPOS.map((name, index) => <Button key={name} className={status.tempo === index + 1 ? "active" : ""} onClick={() => void setTempo(index + 1).then(acceptStatus)}><b>{name}</b><small>{TEMPO_DETAILS[index]}</small></Button>)}</div></div>
           <div className="sm-control-group"><span>LIGHT PROFILE</span><div className="sm-world-bar-mode" aria-label="Physical bar style">
             <Button aria-pressed={!status.optical_bar} className={`luminous${!status.optical_bar ? " active" : ""}`} onClick={() => void setSetting("optical_bar", false).then(acceptStatus)}><b>LUMINOUS</b><small>BRIGHT · SOFT GLOW</small></Button>
             <Button aria-pressed={status.optical_bar} className={`contrasted${status.optical_bar ? " active" : ""}`} onClick={() => void setSetting("optical_bar", true).then(acceptStatus)}><b>CONTRASTED</b><small>DARK · CLEAR GAPS</small></Button>
           </div></div>
-        </div></> : null}
-        <div className="sm-world-nav"><Button onClick={() => Navigation.NavigateBack()}>← BACK TO STEAM</Button><Button onClick={() => setShowIntro(true)}>REPLAY INTRO</Button></div>
-        {status.hardware_owner === "other" || error ? <div className="sm-alert">{error || status.hardware_error}</div> : null}
+          <div className="sm-control-group sm-exit-control"><span>SESSION</span><div className="sm-world-exit"><Button disabled={exiting} onClick={() => void exitGame()}><b>⏻ {exiting ? "EXITING…" : "EXIT GAME"}</b><small>SAVE · RELEASE LED</small></Button></div></div>
+        </div>
+        {status.hardware_owner === "SignalBar" ? <div className="sm-alert">{status.signalbar_priority === "configured-priority" ? "SIGNALBAR CONFIGURED PRIORITY" : "SIGNALBAR LIGHT EVENT"} · MINING CONTINUES · BAR RETURNS AUTOMATICALLY</div> : status.hardware_owner === "other" || error ? <div className="sm-alert">{error || status.hardware_error}</div> : null}
         {toast ? <div key={toast.seq} className="sm-toast">{toast.label}</div> : null}
         {!finaleActive ? <ScoreCascade status={status} /> : null}<FinaleOverlay status={status} />
       </section>
@@ -203,9 +237,9 @@ function Game() {
         <div className="sm-actions"><div className="sm-actions-title"><span>PLAYER ACTIONS</span><strong>{status.paused ? "SHIFT PAUSED" : `A · X · Y · ${controlSource === "steam" ? "STEAM INPUT" : controlSource === "browser" ? "GAMEPAD" : "WAITING"}`}</strong></div>
           <div className="sm-action-audio"><span>AUDIO</span><Button className={music ? "on" : ""} onClick={() => { const enabled = !music; if (audio.setMusic(enabled)) setMusic(enabled); }}>♫ OST {musicVolume}% · {music ? "ON" : "OFF"}</Button>
             <Button className={effects ? "on" : ""} onClick={() => { const enabled = !effects; setEffects(enabled); audio.setEffects(enabled); if (enabled) audio.play("critical"); }}>✦ SFX {effectsVolume}% · {effects ? "ON" : "OFF"}</Button></div>
-          <Button className={`sm-action primary${strikeResult ? " active" : ""}`} preferredFocus disabled={status.paused || status.complete || (status.reward_pending && !finaleArmed)} onClick={() => void signalStrike()}><kbd>A</kbd><span><b>{finaleArmed ? "LAST STRIKE" : strikeResult || "SIGNAL STRIKE"}</b><small>{finaleArmed ? "Break the Ancient Core" : strikeResult ? "Impact registered · mineral progress increased" : "Time it at the vein · next load ×1.5 or ×3"}</small></span></Button>
-          <Button className={`sm-action${status.convoy_held ? " active" : ""}`} disabled={status.complete} onClick={convoy}><kbd>X</kbd><span><b>{status.convoy_held ? `BANK ${status.pending_convoy} LOADED` : "HOLD CONVOY"}</b><small>{status.convoy_held ? "Release the group multiplier" : "Stack returning miners at the gates"}</small></span></Button>
-          <Button className={`sm-action${status.overcharge_remaining > 0 ? " active" : ""}${status.overcharge_cooldown > 0 && status.overcharge_remaining <= 0 ? " disabled" : ""}`} disabled={status.complete || (status.overcharge_cooldown > 0 && status.overcharge_remaining <= 0)} onClick={overcharge}><kbd>Y</kbd><span><b>{status.overcharge_remaining > 0 ? `OVERCHARGE ${Math.ceil(status.overcharge_remaining)}S` : status.overcharge_cooldown > 0 ? `RECHARGE ${Math.ceil(status.overcharge_cooldown / 60)}M` : "OVERCHARGE"}</b><small>Thirty seconds at ×2.25 power</small></span></Button>
+          <Button className={`sm-action primary${strikeResult ? " active" : ""}`} preferredFocus disabled={status.paused || status.complete || (status.reward_pending && !finaleArmed)} onClick={() => void signalStrike()}><kbd>A</kbd><span><b>{finaleArmed ? "LAST STRIKE" : strikeResult || "SIGNAL STRIKE"}</b></span></Button>
+          <Button className={`sm-action${status.convoy_held ? " active" : ""}`} disabled={status.complete} onClick={convoy}><kbd>X</kbd><span><b>{status.convoy_held ? `BANK ${status.pending_convoy} LOADED` : "HOLD CONVOY"}</b></span></Button>
+          <Button className={`sm-action${status.overcharge_remaining > 0 ? " active" : ""}${status.overcharge_cooldown > 0 && status.overcharge_remaining <= 0 ? " disabled" : ""}`} disabled={status.complete || (status.overcharge_cooldown > 0 && status.overcharge_remaining <= 0)} onClick={overcharge}><kbd>Y</kbd><span><b>{status.overcharge_remaining > 0 ? `OVERCHARGE ${Math.ceil(status.overcharge_remaining)}S` : status.overcharge_cooldown > 0 ? `RECHARGE ${Math.ceil(status.overcharge_cooldown / 60)}M` : "OVERCHARGE"}</b></span></Button>
           <div className="sm-settings-line"><span>{status.message}</span><div><Button className="workshop" onClick={() => setShowWorkshop(true)}>⚒ WORKSHOP</Button><Button onClick={() => void apply(setPaused(!status.paused))}>{status.paused ? "RESUME" : "PAUSE"}</Button><Button onClick={() => void apply(setSetting("led_enabled", !status.led_enabled))}>LED {status.led_enabled ? "ON" : "OFF"}</Button>{status.hardware_owner === "other" ? <Button onClick={() => void apply(retryLed())}>RETRY BAR</Button> : null}<Button onClick={() => setResetConfirm(true)}>RESET</Button></div></div>
         </div>
       </section>
@@ -222,9 +256,23 @@ function QuickPanel() {
   const [musicVolume, setMusicVolume] = useState(Math.round(sharedAudio.musicVolume * 100));
   const [effectsVolume, setEffectsVolume] = useState(Math.round(sharedAudio.effectsVolume * 100));
   const [resetConfirm, setResetConfirm] = useState(false);
+  const [exiting, setExiting] = useState(false);
   const audio = sharedAudio;
-  useEffect(() => { audio.startDefaults(); let alive = true; const refresh = () => void getStatus().then((next) => { if (alive) { setStatus(next); audio.onStatus(next); setMusic(audio.musicEnabled); setEffects(audio.effectsEnabled); } }).catch(() => undefined); refresh(); const timer = window.setInterval(refresh, 250); return () => { alive = false; window.clearInterval(timer); }; }, [audio]);
+  useEffect(() => { let alive = true; const refresh = () => void getStatus().then((next) => { if (alive) { setStatus(next); audio.onStatus(next); setMusic(audio.musicEnabled); setEffects(audio.effectsEnabled); } }).catch(() => undefined); refresh(); const timer = window.setInterval(refresh, 250); return () => { alive = false; window.clearInterval(timer); }; }, [audio]);
   const update = (work: Promise<StripMineStatus>) => void work.then(setStatus).catch(() => undefined);
+  const exitFromPanel = async () => {
+    if (exiting || status?.session_parked) return;
+    setExiting(true);
+    try {
+      const next = await quitGame();
+      setStatus(next);
+      audio.setScreenActive(false);
+      if (fullGameMounted) Navigation.NavigateToLibraryTab();
+      Navigation.CloseSideMenus();
+    } finally {
+      setExiting(false);
+    }
+  };
   if (!status) return <PanelSection title="StripMine"><style>{styles}</style><div className="sm-qam-loading">WAKING THE MINE…</div></PanelSection>;
   const floors = status.city.reduce((total, plot) => total + (plot?.level ?? 0) * 2, 0);
   const west = status.workers.filter((worker) => worker.side === "left").length;
@@ -233,22 +281,22 @@ function QuickPanel() {
   const pageLabel = status.complete ? "FINALE" : status.reward_pending ? "REWARD" : status.cue_active && status.last_cashout && status.cue_kind.startsWith("cashout") ? "SCORE" : QAM_PAGES[pageIndex];
   const progressLabel = veinPercent(status);
   return <PanelSection title="StripMine"><style>{styles}</style><div className="sm-qam">
-    <div className="sm-qam-title"><img className="sm-qam-logo" src={STRIPMINE_LOGO_URL} alt="" aria-hidden="true" /><strong>STRIPMINE · CONTROL ROOM</strong><i>● LIVE</i></div>
+    <div className="sm-qam-title"><QuickPanelBrand /><i>{status.session_parked ? "● PARKED" : status.signalbar_event_active ? "● SIGNALBAR PRIORITY" : "● LIVE"}</i></div>
     <div className="sm-qam-matrix-panel">
-      <header><span>LIVE STORY MATRIX · 97K DOTS</span><strong>{status.cue_active ? status.cue_label : `${status.deposit_short} · ${progressLabel}%`}</strong></header>
+      <header><span>LIVE STORY MATRIX · {Math.round(MATRIX_DOTS / 1000)}K DOTS</span><strong>{status.cue_active ? status.cue_label : `${status.deposit_short} · ${progressLabel}%`}</strong></header>
       <div className="sm-qam-matrix"><DotMatrix status={status} /></div>
       <div className="sm-qam-pages" aria-label={`${pageLabel} story page`}>{QAM_PAGES.map((page, index) => <i key={page} className={!status.reward_pending && !status.complete && index === pageIndex ? "active" : ""} />)}<span>{pageLabel}</span></div>
       <footer><span>{west} WEST</span><span>{status.deposit_short}</span><span>{east} EAST</span></footer>
     </div>
     <div className="sm-qam-stats"><i><span>AGE</span><b>{status.age + 1} · {Math.round(status.campaign_progress * 100)}%</b></i><i><span>SKYLINE</span><b>{floors} FLOORS</b></i><i><span>CREW</span><b>{status.worker_count}/4 · {status.rank_name.toUpperCase()}</b></i></div>
     <div className="sm-qam-tempo">{TEMPOS.map((name, index) => <Button key={name} className={status.tempo === index + 1 ? "active" : ""} onClick={() => update(setTempo(index + 1))}><b>{name}</b><small>×{index + 1}</small></Button>)}</div>
-    <div className="sm-qam-controls"><Button className={music ? "on" : ""} onClick={() => { const enabled = !music; if (audio.setMusic(enabled)) setMusic(enabled); }}>♫ OST {musicVolume}% · {music ? "ON" : "OFF"}</Button><Button className={effects ? "on" : ""} onClick={() => { const enabled = !effects; audio.setEffects(enabled); setEffects(enabled); if (enabled) audio.play("critical"); }}>✦ SFX {effectsVolume}% · {effects ? "ON" : "OFF"}</Button><Button className={status.paused ? "on" : ""} onClick={() => update(setPaused(!status.paused))}>{status.paused ? "▶ RESUME" : "Ⅱ PAUSE"}</Button><Button className={status.led_enabled ? "on" : ""} onClick={() => update(setSetting("led_enabled", !status.led_enabled))}>▰ LED {status.led_enabled ? "ON" : "OFF"}</Button></div>
-    <div className="sm-qam-bar-mode"><span>PHYSICAL BAR STYLE</span><Button aria-pressed={!status.optical_bar} className={!status.optical_bar ? "active" : ""} onClick={() => update(setSetting("optical_bar", false))}><b>LUMINOUS</b><small>ALPHA.13 · BRIGHT</small></Button><Button aria-pressed={status.optical_bar} className={status.optical_bar ? "active" : ""} onClick={() => update(setSetting("optical_bar", true))}><b>CONTRASTED</b><small>ALPHA.14 · DARK GAPS</small></Button></div>
+    <div className="sm-qam-controls"><Button className={music ? "on" : ""} onClick={() => { const enabled = !music; if (audio.setMusic(enabled)) setMusic(enabled); }}>♫ OST {musicVolume}% · {music ? "ON" : "OFF"}</Button><Button className={effects ? "on" : ""} onClick={() => { const enabled = !effects; audio.setEffects(enabled); setEffects(enabled); if (enabled) audio.play("critical"); }}>✦ SFX {effectsVolume}% · {effects ? "ON" : "OFF"}</Button><Button className={status.paused ? "on" : ""} onClick={() => update(status.session_parked ? resumeGame() : setPaused(!status.paused))}>{status.session_parked ? "▶ RESUME SHIFT" : status.paused ? "▶ RESUME" : "Ⅱ PAUSE"}</Button><Button className={status.led_enabled ? "on" : ""} onClick={() => update(setSetting("led_enabled", !status.led_enabled))}>▰ LED {status.led_enabled ? "ON" : "OFF"}</Button></div>
+    <div className="sm-qam-bar-mode"><span>PHYSICAL BAR STYLE</span><Button aria-pressed={!status.optical_bar} className={!status.optical_bar ? "active" : ""} onClick={() => update(setSetting("optical_bar", false))}><b>LUMINOUS</b><small>BRIGHT · SOFT GLOW</small></Button><Button aria-pressed={status.optical_bar} className={status.optical_bar ? "active" : ""} onClick={() => update(setSetting("optical_bar", true))}><b>CONTRASTED</b><small>DARK · CLEAR GAPS</small></Button></div>
     <div className="sm-qam-volume">
       <SliderField label={`MUSIC · ${musicVolume}%`} value={musicVolume} min={0} max={100} step={5} showValue={false} onChange={(value) => { setMusicVolume(value); audio.setMusicVolume(value / 100); }} />
       <SliderField label={`SFX · ${effectsVolume}%`} value={effectsVolume} min={0} max={100} step={5} showValue={false} onChange={(value) => { setEffectsVolume(value); audio.setEffectsVolume(value / 100); }} />
     </div>
-    <div className="sm-qam-footer-actions"><Button className="sm-qam-reset" onClick={() => setResetConfirm(true)}>RESET GAME</Button><Button className="sm-qam-open" onClick={() => { Navigation.CloseSideMenus(); Navigation.Navigate("/stripmine/play"); }}>OPEN FULL GAME</Button></div>
+    <div className="sm-qam-footer-actions"><Button className="sm-qam-open" onClick={() => void (status.session_parked ? resumeGame().then(setStatus) : Promise.resolve(status)).then(() => { Navigation.CloseSideMenus(); Navigation.Navigate("/stripmine/play"); }).catch(() => undefined)}>{status.session_parked ? "▶ RESUME FULL GAME" : "OPEN FULL GAME"}</Button><Button className="sm-qam-reset" onClick={() => setResetConfirm(true)}>RESET GAME</Button><Button className="sm-qam-exit" disabled={status.session_parked || exiting} onClick={() => void exitFromPanel()}>⏻ {exiting ? "EXITING…" : status.session_parked ? "GAME EXITED" : "EXIT GAME"}</Button></div>
     {resetConfirm ? <div className="sm-qam-reset-confirm"><strong>ERASE THIS CITY?</strong><small>Crew, upgrades, score and all completed veins will be reset. The origin story will play next.</small><div><Button onClick={() => setResetConfirm(false)}>CANCEL</Button><Button className="danger" onClick={() => void resetCampaign().then((next) => { setStatus(next); setResetConfirm(false); Navigation.CloseSideMenus(); Navigation.Navigate("/stripmine/play"); }).catch(() => undefined)}>RESET + INTRO</Button></div></div> : null}
   </div></PanelSection>;
 }

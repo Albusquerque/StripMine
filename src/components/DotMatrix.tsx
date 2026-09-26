@@ -3,10 +3,11 @@ import type { StripMineStatus } from "../types";
 
 const PAGES = ["SETTLEMENT", "CREW", "TWIN CITY", "DEPOSIT", "PROGRESSION"];
 const RANKS = ["#ffd13f", "#35e57d", "#ff8423", "#fa4697", "#f4f7ff"];
-const MATRIX_COLS = 360;
-const MATRIX_ROWS = 270;
+const MATRIX_COLS = 512;
+const MATRIX_ROWS = 384;
 const DESIGN_WIDTH = 256;
-const OUTPUT_SCALE = 3;
+const OUTPUT_SCALE = 2;
+export const MATRIX_DOTS = MATRIX_COLS * MATRIX_ROWS;
 export const MATRIX_PAGE_MS = 6000;
 
 export function DotMatrix({ status }: { status: StripMineStatus }) {
@@ -70,7 +71,7 @@ export function DotMatrix({ status }: { status: StripMineStatus }) {
       a.setTransform(1, 0, 0, 1, 0, 0); const pixels = a.getImageData(0, 0, MATRIX_COLS, MATRIX_ROWS).data;
       const outputWidth = MATRIX_COLS * OUTPUT_SCALE; const outputHeight = MATRIX_ROWS * OUTPUT_SCALE; ctx.clearRect(0, 0, outputWidth, outputHeight);
       const bg = ctx.createRadialGradient(outputWidth / 2, outputHeight * .45, 0, outputWidth / 2, outputHeight * .45, outputWidth * .58); bg.addColorStop(0, "#17252a"); bg.addColorStop(1, "#020507"); ctx.fillStyle = bg; ctx.fillRect(0, 0, outputWidth, outputHeight);
-      for (let row = 0; row < MATRIX_ROWS; row += 1) for (let col = 0; col < MATRIX_COLS; col += 1) { const offset = (row * MATRIX_COLS + col) * 4; const on = pixels[offset + 3] > 24; const pulse = .94 + Math.sin(now * .0016 + col * .07) * .06; ctx.fillStyle = on ? `rgba(${Math.min(255, pixels[offset] * 1.28 + 18)},${Math.min(255, pixels[offset + 1] * 1.28 + 18)},${Math.min(255, pixels[offset + 2] * 1.28 + 18)},${.98 * pulse})` : "rgba(118,76,38,.13)"; const size = on ? 2.58 : .69; ctx.beginPath(); ctx.arc(col * OUTPUT_SCALE + 1.5, row * OUTPUT_SCALE + 1.5, size / 2, 0, Math.PI * 2); ctx.fill(); }
+      for (let row = 0; row < MATRIX_ROWS; row += 1) for (let col = 0; col < MATRIX_COLS; col += 1) { const offset = (row * MATRIX_COLS + col) * 4; const on = pixels[offset + 3] > 24; const pulse = .94 + Math.sin(now * .0016 + col * .07) * .06; ctx.fillStyle = on ? `rgba(${Math.min(255, pixels[offset] * 1.28 + 18)},${Math.min(255, pixels[offset + 1] * 1.28 + 18)},${Math.min(255, pixels[offset + 2] * 1.28 + 18)},${.98 * pulse})` : "rgba(118,76,38,.13)"; const size = on ? 1.58 : .44; ctx.beginPath(); ctx.arc(col * OUTPUT_SCALE + 1, row * OUTPUT_SCALE + 1, size / 2, 0, Math.PI * 2); ctx.fill(); }
       canvas.setAttribute("aria-label", `${page < 0 ? s.cue_label : PAGES[page]}. ${s.message}`);
     };
     draw(); timer = window.setInterval(draw, 280);

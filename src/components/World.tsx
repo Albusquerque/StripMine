@@ -200,13 +200,14 @@ function miner(ctx: CanvasRenderingContext2D, worker: WorkerState, x: number, gr
   const striking = strikeProgress !== null;
   const colour = RANKS[worker.rank]; const skin = ["#dca474", "#b97852", "#efc093", "#8e573e", "#c98b62", "#f1c7a5"][worker.id % 6]; const skinLight = ["#f0c39b", "#d79a70", "#ffd6aa", "#b97957", "#e6aa7d", "#ffe0bf"][worker.id % 6];
   const hair = ["#4b2c22", "#261f20", "#9a5c2f", "#37241f", "#c18a4f", "#19191c"][worker.id % 6]; const coat = ["#28515b", "#51445f", "#415b3b", "#5c4635", "#314b68", "#5b3b4a"][worker.id % 6];
-  const destination = worker.outbound ? worker.target : worker.home; const facing = Math.sign(destination - worker.position) || (worker.side === "left" ? 1 : -1); const phase = time * .011 + worker.id * 1.37; const gait = striking ? 0 : Math.sin(phase); const bob = striking ? 0 : Math.abs(gait) * 4; const armSwing = gait * 12; const legSwing = gait * 10;
+  const destination = worker.outbound ? worker.target : worker.home; const facing = Math.sign(destination - worker.position) || (worker.side === "left" ? 1 : -1); const phase = time * .011 + worker.id * 1.37; const gait = striking ? 0 : Math.sin(phase); const bob = striking ? 0 : Math.abs(gait) * 4; const legSwing = gait * 10;
   const part = (ox: number, oy: number, angle: number, width: number, height: number, fill: string, accent?: string) => { ctx.save(); ctx.translate(ox, oy); ctx.rotate(angle); ctx.fillStyle = "#091012"; ctx.fillRect(-width / 2 - 2, -2, width + 4, height + 4); ctx.fillStyle = fill; ctx.fillRect(-width / 2, 0, width, height); if (accent) { ctx.fillStyle = accent; ctx.fillRect(-width / 2 + 2, 2, Math.max(2, width - 4), 3); } ctx.restore(); };
   const poly = (fill: string, points: number[][]) => { ctx.fillStyle = fill; ctx.beginPath(); points.forEach(([px, py], index) => index ? ctx.lineTo(px, py) : ctx.moveTo(px, py)); ctx.closePath(); ctx.fill(); };
   const swing = strikeProgress ?? 0;
   const ease = (value: number) => value * value * (3 - 2 * value);
   const lerp = (from: number, to: number, amount: number) => from + (to - from) * amount;
-  let toolAngle = -.9; let impact = 0;
+  const walkingToolAngle = -.52 + gait * .14;
+  let toolAngle = striking ? -.9 : walkingToolAngle; let impact = 0;
   if (striking) {
     if (swing < .48) toolAngle = lerp(-.9, -1.38, ease(swing / .48));
     else if (swing < .69) toolAngle = lerp(-1.38, .62, Math.pow((swing - .48) / .21, 2.2));
@@ -214,8 +215,9 @@ function miner(ctx: CanvasRenderingContext2D, worker: WorkerState, x: number, gr
     else toolAngle = lerp(.62, -.9, ease((swing - .78) / .22));
   }
   const toolDirection = { x: Math.cos(toolAngle), y: Math.sin(toolAngle) };
-  const rearGrip = { x: 23, y: -63 };
+  const rearGrip = { x: striking ? 23 : 22 + gait * 2, y: striking ? -63 : -62 + Math.abs(gait) };
   const frontGrip = { x: rearGrip.x + toolDirection.x * 19, y: rearGrip.y + toolDirection.y * 19 };
+  const limbEnd = (origin: { x: number; y: number }, angle: number, length: number) => ({ x: origin.x - Math.sin(angle) * length, y: origin.y + Math.cos(angle) * length });
   const elbow = (shoulder: { x: number; y: number }, hand: { x: number; y: number }, bend: number) => {
     const dx = hand.x - shoulder.x; const dy = hand.y - shoulder.y; const distance = Math.max(1, Math.hypot(dx, dy));
     const reach = Math.min(46, distance); const height = Math.sqrt(Math.max(0, 24 * 24 - (reach * reach) / 4));
@@ -227,14 +229,21 @@ function miner(ctx: CanvasRenderingContext2D, worker: WorkerState, x: number, gr
     ctx.strokeStyle = fill; ctx.lineWidth = 9; ctx.beginPath(); ctx.moveTo(shoulder.x, shoulder.y); ctx.lineTo(joint.x, joint.y); ctx.lineTo(hand.x, hand.y); ctx.stroke();
     ctx.fillStyle = skin; ctx.fillRect(hand.x - 5, hand.y - 5, 10, 10); ctx.restore();
   };
+  const boot = (ankle: { x: number; y: number }, angle: number, fill: string, accent: string) => {
+    ctx.save(); ctx.translate(ankle.x, ankle.y); ctx.rotate(angle);
+    poly("#080e10", [[-9,-5],[7,-5],[17,0],[17,8],[-11,8],[-11,-1]]);
+    poly(fill, [[-7,-3],[6,-3],[14,1],[14,5],[-8,5],[-8,0]]);
+    ctx.fillStyle = accent; ctx.fillRect(-5, -2, 12, 2); ctx.restore();
+  };
   ctx.save(); ctx.translate(x, ground - bob); ctx.scale(facing, 1); ctx.globalAlpha = .3; ctx.fillStyle = "#020607"; ctx.beginPath(); ctx.ellipse(0, 2, 38 + Math.abs(gait) * 3, 8, 0, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
-  const rearLeg = legSwing * Math.PI / 180; part(-8, -43, rearLeg, 11, 36, "#283840", "#49606a"); part(10, -43, -rearLeg, 11, 36, "#324650", "#5d7580"); ctx.fillStyle = "#11191c"; ctx.fillRect(-22 + legSwing * .2, -9, 24, 9); ctx.fillRect(4 - legSwing * .2, -9, 25, 9); ctx.fillStyle = "#59656a"; ctx.fillRect(-19 + legSwing * .2, -8, 15, 3); ctx.fillRect(7 - legSwing * .2, -8, 15, 3);
-  if (striking) articulatedArm({ x: -18, y: -83 }, rearGrip, -.68, shadeHex(coat, -20));
-  else { part(-21, -84, -armSwing * Math.PI / 180, 10, 35, shadeHex(coat, -20), colour); ctx.fillStyle = skin; ctx.fillRect(-29 + armSwing * .16, -55, 9, 9); }
+  const rearLeg = legSwing * Math.PI / 180; const rearHip = { x: -8, y: -43 }; const frontHip = { x: 10, y: -43 };
+  part(rearHip.x, rearHip.y, rearLeg, 11, 36, "#283840", "#49606a"); part(frontHip.x, frontHip.y, -rearLeg, 11, 36, "#324650", "#5d7580");
+  const rearAnkle = limbEnd(rearHip, rearLeg, 36); const frontAnkle = limbEnd(frontHip, -rearLeg, 36);
+  boot(rearAnkle, -rearLeg * .16, "#11191c", "#59656a"); boot(frontAnkle, rearLeg * .16, "#11191c", "#667277");
+  articulatedArm({ x: -18, y: -83 }, rearGrip, -.68, shadeHex(coat, -20));
   ctx.fillStyle = "#081012"; ctx.fillRect(-23, -91, 48, 53); ctx.fillStyle = coat; ctx.fillRect(-20, -88, 42, 47); poly(shadeHex(coat, 18), [[-20,-88],[2,-88],[-4,-41],[-20,-41]]); ctx.fillStyle = colour; ctx.fillRect(-18, -88, 38, 7);
   ctx.fillStyle = "#d7aa61"; ctx.fillRect(-21, -52, 44, 7); ctx.fillStyle = "#614228"; ctx.fillRect(-13, -50, 8, 10); ctx.fillRect(10, -50, 9, 12); ctx.fillStyle = "#ead59b"; ctx.fillRect(-10, -49, 3, 4); ctx.fillStyle = "#19262b"; ctx.fillRect(-30, -86, 11, 35); ctx.fillStyle = "#5d4832"; ctx.fillRect(-28, -82, 7, 25); ctx.fillStyle = "#d9c187"; ctx.fillRect(-26, -78, 3, 8);
-  if (striking) articulatedArm({ x: 19, y: -83 }, frontGrip, .72, shadeHex(coat, 8));
-  else { part(21, -84, armSwing * Math.PI / 180, 10, 35, shadeHex(coat, 8), colour); ctx.fillStyle = skinLight; ctx.fillRect(24 - armSwing * .12, -56, 9, 9); }
+  articulatedArm({ x: 19, y: -83 }, frontGrip, .72, shadeHex(coat, 8));
   ctx.fillStyle = "#071012"; ctx.fillRect(-15, -122, 36, 36); ctx.fillStyle = hair; ctx.fillRect(-14, -121, 33, 12); ctx.fillRect(-14, -113, worker.id % 2 ? 7 : 5, 18); ctx.fillStyle = skin; ctx.fillRect(-9, -116, 29, 27); ctx.fillStyle = skinLight; ctx.fillRect(9, -113, 11, 14); ctx.fillStyle = hair; if (worker.id % 3 === 0) { ctx.fillRect(-4, -96, 25, 8); ctx.fillRect(13, -104, 9, 12); } else if (worker.id % 3 === 1) ctx.fillRect(-7, -94, 15, 5); else ctx.fillRect(14, -100, 8, 8); ctx.fillStyle = "#17191b"; ctx.fillRect(11, -109, 4, 4); ctx.fillStyle = "#fff7d2"; ctx.fillRect(12, -109, 2, 1); ctx.fillStyle = skinLight; ctx.fillRect(20, -106, 5, 7); ctx.fillStyle = "#8d5140"; ctx.fillRect(10, -95, 9, 2);
   ctx.fillStyle = "#081011"; ctx.fillRect(-22, -136, 51, 19); ctx.fillStyle = colour; ctx.fillRect(-18, -134, 42, 15); ctx.fillRect(-11, -143, 29, 10); ctx.fillStyle = shadeHex(colour, 36); ctx.fillRect(-9, -141, 22, 4); ctx.fillStyle = "#10191b"; ctx.fillRect(-24, -121, 55, 6); ctx.fillStyle = colour; ctx.fillRect(-21, -123, 49, 5); ctx.fillStyle = "#f8eaa9"; ctx.fillRect(22, -132, 9, 9); ctx.fillStyle = "#fff"; ctx.fillRect(25, -130, 4, 3); const lampGlow = ctx.createRadialGradient(29, -128, 1, 29, -128, 43); lampGlow.addColorStop(0, shadeHex(colour, 35, .56)); lampGlow.addColorStop(1, "transparent"); ctx.fillStyle = lampGlow; ctx.fillRect(-14, -171, 86, 86); ctx.globalAlpha = .12; ctx.fillStyle = colour; ctx.beginPath(); ctx.moveTo(30, -129); ctx.lineTo(132, -162); ctx.lineTo(132, -91); ctx.closePath(); ctx.fill(); ctx.globalAlpha = 1;
   if (worker.loaded && !striking) {
@@ -249,19 +258,30 @@ function miner(ctx: CanvasRenderingContext2D, worker: WorkerState, x: number, gr
     ctx.shadowBlur = 0; ctx.fillStyle = "rgba(255,255,255,.72)"; ctx.fillRect(-35, -68, 7, 3); ctx.restore();
   }
   if (worker.rank >= 1) { ctx.fillStyle = colour; ctx.fillRect(-35, -88, 7, 40); ctx.fillStyle = "#eafff7"; ctx.fillRect(-33, -80, 3, 12); } if (worker.rank >= 2) { ctx.fillStyle = shadeHex(colour, 26); ctx.fillRect(-25, -91, 13, 7); ctx.fillRect(14, -91, 13, 7); } if (worker.rank >= 3) { ctx.fillStyle = "#d9fbff"; ctx.fillRect(5, -113, 15, 2); ctx.fillRect(8, -117, 2, 10); } if (worker.rank >= 4) { ctx.strokeStyle = "rgba(255,255,255,.75)"; ctx.lineWidth = 2; ctx.strokeRect(-24, -145, 57, 25); }
-  if (striking) {
-    const handleRoot = { x: rearGrip.x - toolDirection.x * 17, y: rearGrip.y - toolDirection.y * 17 };
+  {
     const head = { x: rearGrip.x + toolDirection.x * 73, y: rearGrip.y + toolDirection.y * 73 };
-    const normal = { x: -toolDirection.y, y: toolDirection.x };
-    ctx.save(); ctx.lineCap = "square";
-    ctx.strokeStyle = "#071012"; ctx.lineWidth = 10; ctx.beginPath(); ctx.moveTo(handleRoot.x, handleRoot.y); ctx.lineTo(head.x, head.y); ctx.stroke();
-    ctx.strokeStyle = "#6b4229"; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(handleRoot.x, handleRoot.y); ctx.lineTo(head.x, head.y); ctx.stroke();
-    ctx.strokeStyle = "#071012"; ctx.lineWidth = 13; ctx.beginPath(); ctx.moveTo(head.x - normal.x * 29, head.y - normal.y * 29); ctx.lineTo(head.x + normal.x * 29, head.y + normal.y * 29); ctx.stroke();
-    ctx.strokeStyle = "#c9d9d7"; ctx.lineWidth = 7; ctx.beginPath(); ctx.moveTo(head.x - normal.x * 27, head.y - normal.y * 27); ctx.lineTo(head.x + normal.x * 27, head.y + normal.y * 27); ctx.stroke();
-    ctx.strokeStyle = "#f4ffff"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(head.x - normal.x * 23, head.y - normal.y * 23); ctx.lineTo(head.x - normal.x * 4, head.y - normal.y * 4); ctx.stroke(); ctx.restore();
-    if (impact > 0) { ctx.globalAlpha = impact * .62; ctx.fillStyle = rgb(cargoLight); for (let chip = 0; chip < 5; chip += 1) { const spread = 18 + chip * 9; ctx.fillRect(head.x + 5 + chip * 4, Math.min(-2, head.y) - spread * impact, 5 + chip % 2 * 3, 4); } ctx.globalAlpha = 1; }
-  } else {
-    const walkingToolAngle = -.52 + gait * .14; ctx.save(); ctx.translate(27, -65); ctx.rotate(walkingToolAngle); ctx.fillStyle = "#5d3b26"; ctx.fillRect(-3, -4, 6, 63); ctx.fillStyle = "#c9d9d7"; ctx.fillRect(-28, -9, 56, 7); ctx.fillStyle = "#f4ffff"; ctx.fillRect(-24, -8, 18, 2); ctx.fillStyle = "#819698"; ctx.fillRect(-31, -6, 7, 10); ctx.fillRect(25, -6, 7, 10); ctx.restore();
+    ctx.save();
+    ctx.translate(head.x, head.y);
+    ctx.rotate(toolAngle + Math.PI / 2);
+    // Human-scale tool: shoulder-width head, with the long point on the striking side.
+    ctx.scale(.72, .72);
+    poly("#071012", [[-7,-3],[7,-3],[7,87],[4,94],[1,98],[-3,98],[-7,88]]);
+    poly("#5d3b26", [[-4,0],[4,0],[4,85],[2,92],[-2,94],[-4,86]]);
+    poly("#815133", [[-2,3],[0,3],[0,84],[-2,89]]);
+    poly("#a66b3a", [[1,3],[3,3],[3,62],[1,69]]);
+    poly("#071012", [[-7,-12],[-14,-10],[-21,-6],[-28,0],[-30,7],[-24,12],[-20,7],[-13,4],[-7,3]]);
+    poly("#819698", [[-7,-9],[-13,-7],[-19,-3],[-25,2],[-27,5],[-24,8],[-19,4],[-12,1],[-7,1]]);
+    poly("#c9d9d7", [[-8,-8],[-13,-6],[-19,-3],[-24,1],[-19,0],[-13,-3],[-8,-4]]);
+    poly("#071012", [[5,-14],[15,-13],[25,-9],[35,-3],[43,6],[43,11],[38,15],[32,11],[24,7],[15,4],[7,3]]);
+    poly("#819698", [[7,-11],[16,-10],[25,-7],[34,-2],[40,6],[40,10],[37,12],[32,8],[24,4],[15,1],[7,1]]);
+    poly("#c9d9d7", [[7,-10],[15,-9],[24,-6],[33,-1],[39,6],[37,7],[31,4],[23,1],[15,-2],[7,-3]]);
+    poly("#f4ffff", [[9,-8],[16,-7],[23,-4],[30,0],[26,-1],[18,-4],[10,-5]]);
+    poly("#071012", [[-10,-15],[10,-15],[12,-10],[11,11],[7,15],[-8,15],[-11,10],[-12,-10]]);
+    poly("#819698", [[-7,-12],[7,-12],[9,-8],[8,9],[5,12],[-5,12],[-8,8],[-9,-8]]);
+    poly("#c9d9d7", [[-5,-11],[2,-11],[2,10],[-4,10],[-6,7],[-6,-8]]);
+    ctx.fillStyle = "#f4ffff"; ctx.fillRect(-4, -10, 3, 15);
+    ctx.restore();
+    if (striking && impact > 0) { ctx.globalAlpha = impact * .62; ctx.fillStyle = rgb(cargoLight); for (let chip = 0; chip < 5; chip += 1) { const spread = 18 + chip * 9; ctx.fillRect(head.x + 5 + chip * 4, Math.min(-2, head.y) - spread * impact, 5 + chip % 2 * 3, 4); } ctx.globalAlpha = 1; }
   }
   const dust = striking ? impact : Math.abs(gait); ctx.globalAlpha = dust * .3; ctx.fillStyle = "#a0aaa1"; ctx.fillRect(-facing * 26, -3, 13, 3); ctx.fillRect(-facing * 39, -10 - dust * 8, 7, 4); ctx.fillRect(-facing * 51, -18 - dust * 12, 3, 3); ctx.globalAlpha = 1; ctx.restore();
 }

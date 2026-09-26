@@ -3,7 +3,7 @@
 <p align="center"><strong>A persistent mining city built across your television, Decky, and the Steam Machine's 17-LED light bar.</strong></p>
 
 <p align="center">
-  <a href="https://github.com/Albusquerque/StripMine/releases/tag/v0.1.0"><strong>Download v0.1.0</strong></a>
+  <a href="https://github.com/Albusquerque/StripMine/releases/tag/v0.1.1"><strong>Download v0.1.1</strong></a>
   ·
   <a href="https://albusquerque.github.io/stripmine-concept-site/"><strong>Try the interactive concept</strong></a>
 </p>
@@ -18,7 +18,7 @@ Four miners cross an open cave, strike a shrinking mineral vein, carry its colou
 
 ![StripMine Decky control room](assets/readme-gifs/decky-control-room.gif)
 
-The Decky tab keeps the essential state legible without interrupting the shift. Its bright 4:3 Dot Matrix cycles through five story cards for the vein, workers, city, delivery score, and campaign progress. Tempo, music, effects, display profile, pause, reset, and the full game remain within reach.
+The Decky tab keeps the essential state legible without interrupting the shift. Its bright 4:3 Dot Matrix cycles through five story cards for the vein, workers, city, delivery score, and campaign progress. Tempo, music, effects, display profile, pause, reset, exit, and the full game remain within reach. **Exit Game** safely parks the campaign, releases the physical light bar, and keeps the saved city ready for the next shift. **Resume Full Game** wakes the mine again.
 
 ## A game on seventeen physical lights
 
@@ -53,9 +53,9 @@ Press **Y** to run the mine at **×2.25 power for 30 seconds**. Extraction accel
 
 The strongest play is deliberate rather than frantic: time Signal Strikes on several miners, hold their loaded cargo, start Overcharge, then bank the convoy while the power window is still active. The scoring sequence shows each multiplier separately before adding the final City Value.
 
-## What is in v0.1.0
+## What is in v0.1.1
 
-- Five ages, 30 veins, six mineral families, and a 15–63 hour campaign depending on tempo.
+- Five ages, 30 veins, six mineral families, and a 15 to 63 hour campaign depending on tempo.
 - Four persistent miners, capped at two per side, with five real power ranks: yellow, green, orange, magenta, and white.
 - Four live tempo modes: **Chill ×1**, **Normal ×2**, **Nervous ×3**, and **Cocaine ×4**.
 - A delivery economy: **Payload × Crew Power × Signals × Combos × Foundry = City Value**.
@@ -65,26 +65,31 @@ The strongest play is deliberate rather than frantic: time Signal Strikes on sev
 - Music and SFX enabled by default, with persistent ON/OFF choices and independent volume controls.
 - A first-launch cinematic, a four-act finale, atomic save data, and a reset that deliberately replays the introduction.
 - Safe light-bar ownership: StripMine detects another writer, releases the LEDs on conflict, and restores the previous frame only while it still owns the device.
+- Cooperative ownership with SignalBar v0.7.1: each SignalBar family can yield to StripMine or temporarily take the physical bar, while unknown writers remain protected by the conflict guard.
+- A complete **Exit Game** lifecycle that saves and parks the campaign, releases the light bar, stops gameplay and audio, and returns to the Steam library.
 
 ## Install with Decky Loader
 
-StripMine is a **Decky Loader plugin**, not a conventional Steam game. Install [Decky Loader](https://github.com/SteamDeckHomebrew/decky-loader#-installation) first. StripMine is not yet listed in the Decky Plugin Store, so v0.1.0 must be sideloaded.
+StripMine is a **Decky Loader plugin**, not a conventional Steam game. Install [Decky Loader](https://github.com/SteamDeckHomebrew/decky-loader#-installation) first. StripMine is not yet listed in the Decky Plugin Store, so v0.1.1 must be sideloaded.
 
-### Directly from the release URL — recommended
+### Directly from the release URL (recommended)
 
 1. In Gaming Mode, open the Quick Access menu (`…`) and select the Decky plug icon.
-2. Open Decky **Settings** (gear), enable **Developer mode** under **General**, then open **Developer**.
+2. Open Decky **Settings** (gear). Under **General**, enable **Developer mode**
+   only if the **Developer** section is not already visible, then open it.
 3. Choose **Install Plugin from URL** and paste:
 
-   `https://github.com/Albusquerque/StripMine/releases/download/v0.1.0/StripMine-v0.1.0.zip`
+   `https://github.com/Albusquerque/StripMine/releases/download/v0.1.1/StripMine-v0.1.1.zip`
 
 4. Confirm the installation. If StripMine does not immediately appear, reload or restart Decky Loader, or reboot the device.
 5. Open **Quick Access (`…`) → Decky → StripMine → Enter the mine**.
 
 ### From a downloaded ZIP
 
-1. Download the `StripMine-v0.1.0.zip` asset from the [v0.1.0 release](https://github.com/Albusquerque/StripMine/releases/tag/v0.1.0). Do not use GitHub's automatically generated “Source code” ZIP.
-2. Open **Decky Settings → Developer → Install Plugin from ZIP File** and select the downloaded archive. Do not extract it.
+1. Download the `StripMine-v0.1.1.zip` asset from the [v0.1.1 release](https://github.com/Albusquerque/StripMine/releases/tag/v0.1.1). Do not use GitHub's automatically generated “Source code” ZIP.
+2. If needed, enable **Developer mode** under **Decky Settings → General**.
+   Then open **Developer → Install Plugin from ZIP File** and select the
+   downloaded archive. Do not extract it.
 3. Reload or restart Decky Loader if the plugin does not immediately appear, then open **StripMine → Enter the mine**.
 
 The full game remains playable in screen simulation when the 17-LED device is absent.
@@ -99,7 +104,7 @@ npm run build
 npm run package
 ```
 
-The installable archive is written to `out/StripMine-v0.1.0.zip`.
+The installable archive is written to `out/StripMine-v0.1.1.zip`.
 
 ## LED ownership and hardware status
 
@@ -111,7 +116,7 @@ Decky stores `stripmine.json` in the plugin settings directory. It contains the 
 
 ## Roadmap
 
-Full coexistence and hand-off compatibility is planned with [SignalBar](https://github.com/Albusquerque/SignalBar) and the still-in-development [SignalDot](https://github.com/Albusquerque/SignalDot). A dedicated version for the JSAUX Dot Matrix faceplate is also planned, with its larger display used as a real extension of the mine rather than a simple status panel.
+StripMine v0.1.1 negotiates physical light-bar ownership with SignalBar v0.7.1. SignalBar can assign StripMine or SignalBar priority independently for Artwork, Performance, Weather, Controller displays and Light Events. Unknown applications remain protected by the normal conflict guard. Compatibility with the still-in-development [SignalDot](https://github.com/Albusquerque/SignalDot) is planned separately. A dedicated version for the JSAUX Dot Matrix faceplate is also planned, with its larger display used as a real extension of the mine rather than a simple status panel.
 
 ## License
 

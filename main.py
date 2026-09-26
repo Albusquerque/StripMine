@@ -46,6 +46,12 @@ class Plugin:
     async def set_paused(self, paused: bool):
         return self.backend.set_paused(paused)
 
+    async def quit_game(self):
+        return self.backend.quit_game()
+
+    async def resume_game(self):
+        return self.backend.resume_game()
+
     async def set_setting(self, key: str, value: bool):
         return self.backend.set_setting(key, value)
 

@@ -80,6 +80,7 @@ export interface StripMineStatus {
   worker_count: number;
   city: Array<CityPlot | null>;
   paused: boolean;
+  session_parked: boolean;
   convoy_held: boolean;
   pending_convoy: number;
   upgrades: UpgradeLevels;
@@ -109,7 +110,10 @@ export interface StripMineStatus {
   reverse_led_order: boolean;
   intro_seen: boolean;
   hardware_available: boolean;
-  hardware_owner: "free" | "StripMine" | "other";
+  hardware_owner: "free" | "StripMine" | "SignalBar" | "other";
+  signalbar_event_active: boolean;
+  signalbar_priority: "" | "light-event" | "temporary-output" | "configured-priority";
+  signalbar_coordination_active: boolean;
   hardware_error: string;
 }
 

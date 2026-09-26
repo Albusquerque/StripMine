@@ -22,8 +22,11 @@ def main():
             archive.write(path, Path("StripMine") / relative)
         for path in sorted((ROOT / "py_modules" / "stripmine").rglob("*.py")):
             archive.write(path, Path("StripMine") / path.relative_to(ROOT))
-        logo = ROOT / "assets" / "stripmine-logo.png"
-        archive.write(logo, Path("StripMine") / logo.relative_to(ROOT))
+        generated_assets = ROOT / "dist" / "assets"
+        if not generated_assets.is_dir():
+            raise SystemExit("Built Decky assets are missing: run npm run build first")
+        for path in sorted(item for item in generated_assets.rglob("*") if item.is_file()):
+            archive.write(path, Path("StripMine") / path.relative_to(ROOT / "dist"))
     print(OUTPUT)
 
 
