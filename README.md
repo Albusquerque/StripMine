@@ -1,7 +1,5 @@
 <p align="center"><img src="assets/stripmine-logo.png" width="520" alt="StripMine"></p>
 
-<h1 align="center">StripMine</h1>
-
 <p align="center"><strong>A persistent mining city built across your television, Decky, and the Steam Machine's 17-LED light bar.</strong></p>
 
 <p align="center">
