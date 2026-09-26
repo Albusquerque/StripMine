@@ -1,0 +1,8 @@
+node_modules/
+dist/
+out/
+__pycache__/
+*.pyc
+.DS_Store
+.preview/
+assets/7878ae4b-92ce-40be-9ecb-daa214f27b92.png

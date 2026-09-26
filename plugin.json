@@ -1,0 +1,10 @@
+{
+  "name": "StripMine",
+  "author": "Albus Querque",
+  "flags": ["root"],
+  "api_version": 1,
+  "publish": {
+    "tags": ["game", "root"],
+    "description": "A persistent idle mining game built around the Steam Machine's 17-LED light bar."
+  }
+}

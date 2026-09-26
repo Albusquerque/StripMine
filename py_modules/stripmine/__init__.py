@@ -1,0 +1,1 @@
+"""StripMine standalone Decky game."""
