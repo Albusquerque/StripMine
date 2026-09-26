@@ -67,6 +67,8 @@ class FrontendContractTests(unittest.TestCase):
         self.assertNotIn("sm-intro-miner", intro)
         self.assertIn('className="sm-qam-logo"', quick_panel)
         self.assertIn("stripmine-logo.png", branding)
+        self.assertIn('new URL("../assets/stripmine-logo.png", window.location.href)', branding)
+        self.assertIn('window.location.port === "1337"', branding)
         self.assertIn('ROOT / "assets"', packager)
 
 
