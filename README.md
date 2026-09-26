@@ -37,6 +37,24 @@ The machine starts with its old blue bar. A mineral appears near the centre, wor
 
 The selected profile is shared by the full game, Decky, and the physical bar.
 
+## The three active controls
+
+The mine runs by itself, but the best deliveries come from combining three actions. They can be triggered with the on-screen controls or the controller face buttons.
+
+### A - Signal Strike
+
+Press **A** as a miner reaches the mineral vein. A good signal adds a **×1.5 multiplier to that miner's next load**; a perfectly timed signal raises it to **×3**. The strike also removes a small amount from the current vein immediately. “Next load” means the bonus is stored on the targeted miner and applied once, when that miner next delivers their coloured cargo to the city.
+
+### X - Hold / Bank Convoy
+
+Press **X** to close both city gates. Returning miners keep their loaded cargo and wait instead of scoring it. Press **X** again to release everyone as one combined delivery: two miners receive **×1.5**, three receive **×2**, and four receive **×2.5**. No ore or City Value is generated while cargo is being held, and extraction eventually stops when every miner is waiting at the gates, so choosing when to bank the convoy matters.
+
+### Y - Overcharge
+
+Press **Y** to run the mine at **×2.25 power for 30 seconds**. Extraction accelerates and every delivery completed during the window receives another **×2.25 multiplier**. Overcharge then needs eight minutes to recharge.
+
+The strongest play is deliberate rather than frantic: time Signal Strikes on several miners, hold their loaded cargo, start Overcharge, then bank the convoy while the power window is still active. The scoring sequence shows each multiplier separately before adding the final City Value.
+
 ## What is in v0.1.0
 
 - Five ages, 30 veins, six mineral families, and a 15–63 hour campaign depending on tempo.
